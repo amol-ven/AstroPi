@@ -1,0 +1,19 @@
+[Unit]
+Description=Mount Serial Stability Tap
+After=multi-user.target
+
+[Service]
+# Ensure the directory exists for the virtual port
+ExecStartPre=/usr/bin/mkdir -p /dev/indi_mounts
+
+# Run the bridge:
+# 1. PTY: Creates a virtual port at /dev/indi_mounts/mount
+# 2. user=astropi: Assigns ownership so you don't need chmod
+# 3. raw/cfmakeraw: Ensures bit-perfect data transmission
+# 4. FILE: Connects to your stable hardware node
+ExecStart=/usr/bin/socat -v -d -d "PTY,link=/dev/sw_usb,raw,echo=0,cfmakeraw,user=astropi" "FILE:/dev/sw_usb_tty,raw,echo=0,cfmakeraw,b115200"
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

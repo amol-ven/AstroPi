@@ -1,0 +1,143 @@
+ Modifications over vanilla raspberry pi os
+ 
+ 
+ 1. HDMI fixup
+Add to /boot/firmware/config.txt
+[all]
+hdmi_force_hotplug=1
+hdmi_group=2
+hdmi_mode=82
+
+
+2. Enable ssh and VNC
+
+3. Setup username and password
+
+
+4. Disable wifi power saving
+
+
+5. Setup default hotspot on wlan0
+
+
+6. Setup default hotspot on usb wlan1 (if plugged in). this is encouraged.  Set wifi band to 5G and channel to 165
+
+
+
+
+
+
+Last step: Install Kstars and PHD2
+
+ 
+ 
+ 
+---------------------------------------------
+
+#!/usr/bin/env bash
+set -e
+
+# Ensure the script is run with sudo
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run this script with sudo:"
+  echo "sudo ./setup_astro_pi.sh"
+  exit 1
+fi
+
+echo "======================================================"
+echo " Starting Astrophotography Environment Setup"
+echo "======================================================"
+
+# --- STEP 1: CONFIGURE HDMI BOOT VARIABLES ---
+echo "--- [1/5] Configuring HDMI Boot Variables ---"
+if ! grep -q "hdmi_force_hotplug=1" /boot/firmware/config.txt; then
+    sudo tee -a /boot/firmware/config.txt > /dev/null << 'EOF'
+
+# Added by Astro Setup Script
+[all]
+hdmi_force_hotplug=1
+hdmi_group=2
+hdmi_mode=82
+EOF
+    echo "HDMI hotplug configurations added to /boot/firmware/config.txt"
+else
+    echo "HDMI parameters already configured."
+fi
+
+
+# --- STEP 2: ENABLE VNC AND SYSTEM SERVICES ---
+echo "--- [2/5] Enabling Remote Desktop (VNC) ---"
+sudo raspi-config nonint do_vnc 0
+
+
+# --- STEP 3: DISABLE WI-FI POWER SAVING ---
+echo "--- [3/5] Disabling Wi-Fi Power Management ---"
+
+# Global NetworkManager override
+sudo tee /etc/NetworkManager/conf.d/default-wifi-powersave-on.conf > /dev/null << 'EOF'
+[connection]
+wifi.powersave = 2
+EOF
+
+# Hardware-level udev fallback rule for internal Broadcom chip
+sudo tee /etc/udev/rules.d/81-wifi-powersave.rules > /dev/null << 'EOF'
+ACTION=="add", SUBSYSTEM=="net", KERNEL=="wlan*", RUN+="/sbin/iw dev %k set power_save off"
+EOF
+
+# Force it off right now on the active wlan0 interface
+sudo iw dev wlan0 set power_save off || true
+
+
+# --- STEP 4: CONFIGURE NATIVE DUAL HOTSPOTS ---
+echo "--- [4/5] Creating Dual Access Point Profiles Natively ---"
+
+# Delete existing profiles with these names if they exist to prevent duplicates
+sudo nmcli connection delete Hotspot-Internal >/dev/null 2>&1 || true
+sudo nmcli connection delete Hotspot-External >/dev/null 2>&1 || true
+
+# Create the Internal Hotspot (wlan0)
+sudo nmcli connection add \
+    type wifi \
+    ifname wlan0 \
+    con-name Hotspot-Internal \
+    autoconnect yes \
+    ssid Pi-Astro-Internal \
+    mode ap \
+    wifi-sec.key-mgmt wpa-psk \
+    wifi-sec.psk astrophotography \
+    ipv4.method shared \
+    ipv6.method ignore
+
+# Create the External Hotspot (wlan1 - USB Dongle)
+sudo nmcli connection add \
+    type wifi \
+    ifname wlan1 \
+    con-name Hotspot-External \
+    autoconnect yes \
+    ssid Pi-Astro-HighPower \
+    mode ap \
+    wifi-sec.key-mgmt wpa-psk \
+    wifi-sec.psk astrophotography \
+    ipv4.method shared \
+    ipv6.method ignore
+
+
+# --- STEP 5: INSTALL APPLICATION SOFTWARE ---
+echo "--- [5/5] Installing KStars, PHD2, and INDI Stack ---"
+sudo apt-get update
+sudo apt-get install -y kstars phd2 indi-bin
+
+# System Update Cleanup
+sudo apt-get clean
+
+echo "======================================================"
+echo " SETUP COMPLETE!"
+echo "======================================================"
+echo "1. Your dual hotspots are active. Connect using:"
+echo "   - SSID: Pi-Astro-Internal (Built-in)"
+echo "   - SSID: Pi-Astro-HighPower (External USB Wi-Fi)"
+echo "   - Password: astrophotography"
+echo ""
+echo "2. Please reboot the Pi now to initialize the HDMI fixes:"
+echo "   sudo reboot"
+echo "======================================================"
