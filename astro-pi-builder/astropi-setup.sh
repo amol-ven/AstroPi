@@ -17,6 +17,12 @@ echo "[+] Starting Manual AstroPi Setup & Astronomy Suite Configuration..."
 # 1. Enable VNC natively (Requires root)
 sudo raspi-config nonint do_vnc 0
 
+# 1.5. Configure Udev rule to guarantee internal Wi-Fi is always wlan0
+echo "[+] Configuring udev rule for internal Wi-Fi interface (wlan0)..."
+sudo tee /etc/udev/rules.d/70-persistent-net.rules > /dev/null << 'EOF'
+SUBSYSTEM=="net", ACTION=="add", DRIVERS=="brcmfmac", NAME="wlan0"
+EOF
+
 # 2. Setup Dual NetworkManager Hotspots (Requires root)
 sudo nmcli radio wifi on
 sudo nmcli connection add type wifi ifname wlan0 con-name Hotspot-Internal autoconnect yes ssid Pi-Astro-Internal mode ap wifi-sec.key-mgmt wpa-psk wifi-sec.psk astrophotography ipv4.method shared ipv6.method ignore || true
