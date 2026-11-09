@@ -25,7 +25,7 @@ EOF
 
 # 2. Setup Dual NetworkManager Hotspots (Requires root)
 sudo nmcli radio wifi on
-sudo nmcli connection add type wifi ifname wlan0 con-name Hotspot-Internal autoconnect yes ssid Pi-Astro-Internal mode ap wifi-sec.key-mgmt wpa-psk wifi-sec.psk astrophotography ipv4.method shared ipv6.method ignore || true
+sudo nmcli connection add type wifi ifname wlan0 con-name Hotspot-Internal autoconnect yes ssid Pi-Astro-Internal  mode ap 802-11-wireless.band a 802-11-wireless.channel 149 wifi-sec.key-mgmt wpa-psk wifi-sec.psk astrophotography ipv4.method shared ipv6.method ignore || true
 sudo nmcli connection add type wifi ifname wlan1 con-name Hotspot-External autoconnect yes ssid Pi-Astro-HighPower mode ap 802-11-wireless.band a 802-11-wireless.channel 165 wifi-sec.key-mgmt wpa-psk wifi-sec.psk astrophotography ipv4.method shared ipv6.method ignore || true
 
 BUILD_DIR="/home/astropi/astropi_build"
